@@ -1,0 +1,41 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: windfire
+            asset_name: windfire-linux-amd64
+          - os: windows-latest
+            artifact_name: windfire.exe
+            asset_name: windfire-windows-amd64.exe
+          - os: macos-latest
+            artifact_name: windfire
+            asset_name: windfire-macos-arm64
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --release
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.ref }}
+          body: |
+            ${{ steps.read_release.outputs.RELEASE_BODY }}
+          EXTRA_FILES: "README.md LICENSE"
