@@ -1,11 +1,11 @@
-use futures::future::join_all;
-use std::sync::Arc;
-use clap::Parser;
-use reqwest::Client;
-use tokio::task;
-use tokio::sync::Semaphore;
-use crate::httpclient::{send_request,create_http_client};
+use crate::httpclient::{create_http_client, send_request};
 use crate::utils::read_file;
+use clap::Parser;
+use futures::future::join_all;
+use reqwest::Client;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::task;
 
 mod httpclient;
 mod utils;
@@ -32,42 +32,56 @@ struct Args {
     /// The http request timeout
     #[arg(short = 's', long, default_value = "10")]
     timeout: usize,
-}
 
+    /// Display the specified status code
+    #[arg(short = 'c', long, default_value = "200")]
+    status_code: String,
+}
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
+    let status_vec = args.status_code.split(",").collect::<Vec<_>>();
+
+    let u16_vec = status_vec
+        .into_iter()
+        .map(|s| s.trim().parse::<u16>().ok().unwrap_or(200))
+        .collect::<Vec<_>>();
+
     if let Some(url) = args.url {
         let client = create_http_client(args.timeout);
-        let result = send_request(client, &url).await;
+        let result = send_request(client, &url, u16_vec).await;
         match result {
             Ok(result) => {
-                println!("{}", result);
-            },
+                if result != "" {
+                    println!("{}", result);
+                }
+            }
             Err(e) => {
                 println!("{}", e);
             }
         }
-    }
-    else if let Some(file) = args.file {
+    } else if let Some(file) = args.file {
         let urls = read_file(&*file).await;
         match urls {
             Ok(urls) => {
-                let client = httpclient::create_http_client(args.timeout);
+                let client = create_http_client(args.timeout);
                 let semaphore = Arc::new(Semaphore::new(args.thread));
                 let mut futures = Vec::new();
                 for url in urls {
                     let semaphore = Arc::clone(&semaphore);
                     let client: Client = client.clone();
+                    let u16_vec = u16_vec.clone();
                     futures.push(task::spawn(async move {
                         let permit = semaphore.acquire().await.unwrap();
-                        let result = send_request(client,url.as_str()).await;
+                        let result = send_request(client, url.as_str(), u16_vec).await;
                         match result {
                             Ok(result) => {
-                                println!("{}", result);
-                            },
+                                if result != "" {
+                                    println!("{}", result);
+                                }
+                            }
                             Err(_) => {}
                         }
                         drop(permit);
@@ -76,7 +90,7 @@ async fn main() {
                 join_all(futures).await;
             }
             Err(e) => {
-                println!("{}",e)
+                println!("{}", e)
             }
         }
     }

@@ -5,9 +5,12 @@ authors = ["muddlelife <a2753411952@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
 clap = { version = "4.5.9",features = ["derive"] }
 futures = "0.3.30"
+lazy_static = "1.5.0"
+regex = "1.10.6"
 reqwest = "0.12.5"
-select = "0.6.0"
 tokio = { version = "1.38.1", features = ["full"] }
+
+[profile.release]
+lto = true

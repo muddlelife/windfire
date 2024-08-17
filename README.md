@@ -8,10 +8,11 @@ An efficient and fast url survival detection tool
 Usage: windfire [OPTIONS]
 
 Options:
-  -t, --thread <THREAD>    Setting the number of threads [default: 50]
-  -u, --url <URL>          Enter an url
-  -f, --file <FILE>        Enter a file path
-  -s, --timeout <TIMEOUT>  The http request timeout [default: 10]
-  -h, --help               Print help (see more with '--help')
-  -V, --version            Print version
+  -t, --thread <THREAD>            Setting the number of threads [default: 50]
+  -u, --url <URL>                  Enter an url
+  -f, --file <FILE>                Enter a file path
+  -s, --timeout <TIMEOUT>          The http request timeout [default: 10]
+  -c, --status-code <STATUS_CODE>  Display the specified status code [default: 200]
+  -h, --help                       Print help (see more with '--help')
+  -V, --version                    Print version
 ```

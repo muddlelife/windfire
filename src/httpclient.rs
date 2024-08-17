@@ -1,19 +1,16 @@
+use crate::utils::get_format_info;
+use reqwest::{header, Client};
 use std::time::Duration;
-use anyhow::{Error, Result};
-use select::document::Document;
-use select::predicate::Name;
-use reqwest::{Client, header};
 
-pub const USER_AGENT: &str ="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0";
+pub const USER_AGENT: &str =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0";
 
 // 创建http客户端
 pub fn create_http_client(timeout: usize) -> Client {
     let mut headers = header::HeaderMap::new();
     headers.insert(
         header::USER_AGENT,
-        header::HeaderValue::from_static(
-            USER_AGENT
-        ),
+        header::HeaderValue::from_static(USER_AGENT),
     );
     headers.insert(
         header::ACCEPT,
@@ -43,29 +40,34 @@ pub fn create_http_client(timeout: usize) -> Client {
         .danger_accept_invalid_certs(true) // 忽略证书错误
         .default_headers(headers)
         .timeout(Duration::from_secs(timeout as u64))
-        .build().expect("httpclient create failed!")
+        .build()
+        .expect("httpclient create failed!")
 }
 
-
-pub async fn send_request(client: Client,url: &str) -> Result<String,Error>{
+pub async fn send_request(
+    client: Client,
+    url: &str,
+    u16_vec: Vec<u16>,
+) -> Result<String, reqwest::Error> {
     let response = client.get(url).send().await?;
-    // 获取状态码
-    let code = response.status();
-    // 获取页面内容
-    let content = response.text().await?;
-    // 获取页面长度
-    let length = content.len() % 1024;
-    // 提取title
-    let document = Document::from(content.clone().as_str());
-    let title = document
-        .find(Name("title"))
-        .next()
-        .map(|n| n.text())
-        .unwrap_or("".to_string());
 
-    Ok(format!("{} [{}] [{}] [{}kb]",url,code.as_u16(),title.trim(),length).into())
+    let scan_info = get_format_info(response);
+
+    let scan_info = scan_info.await;
+
+    let status_code = scan_info.status_code;
+    let title = scan_info.title;
+    let content_length = scan_info.content_length;
+
+    if u16_vec.contains(&status_code) {
+        Ok(format!(
+            "{} [{}] [{}] [{}kb]",
+            url, status_code, title, content_length
+        ))
+    } else {
+        Ok("".to_string())
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -74,7 +76,7 @@ mod tests {
     async fn test_send_request() {
         let client = create_http_client(10);
         let url = "https://www.baidu.com/";
-        let result = send_request(client, url).await;
-        println!("result:{}",result.unwrap());
+        let result = send_request(client, url, vec![200]).await;
+        println!("result:{}", result.unwrap());
     }
 }
