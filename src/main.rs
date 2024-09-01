@@ -7,7 +7,6 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::task;
 
-mod args;
 mod httpclient;
 mod utils;
 
