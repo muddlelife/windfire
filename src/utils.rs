@@ -20,36 +20,38 @@ pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Erro
     Ok(urls)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_file() {
-        let urls = read_file("url.txt").unwrap();
-        println!("{:?}", urls)
-    }
-}
-
 // 获取目标结果
 pub struct ScanInfo {
     pub status_code: u16,
     pub title: String,
     pub content_length: usize,
+    pub server: String,
+    pub jump_url: String, // 跳转后的url
 }
 
 // 根据响应获取响应结果
 pub async fn get_format_info(response: Response) -> ScanInfo {
     let status_code = response.status().as_u16();
+    let jump_url = response.url().to_string();
+
+    // 获取server
+    let headers = response.headers().get("Server");
+    let server = match headers {
+        Some(s) => s.to_owned().to_str().unwrap_or("").to_string(),
+        None => "".to_string(),
+    };
+
     let content = response.text().await.unwrap_or("".to_string());
     // 获取长度
-    let content_length = content.len() % 1024;
+    let content_length = content.len();
     let title = extract_title(&content).unwrap_or("".to_string());
 
     ScanInfo {
         status_code,
         title,
         content_length,
+        server,
+        jump_url,
     }
 }
 

@@ -48,21 +48,35 @@ pub async fn send_request(
     client: Client,
     url: &str,
     u16_vec: Vec<u16>,
+    path: &str,
 ) -> Result<String, reqwest::Error> {
-    let response = client.get(url).send().await?;
+    // 解析URL，如果path为空，则默认为/，如果有值，则加上，还需要处理url有没有/
+    let url = if path.is_empty() {
+        url.to_string() // 如果 path 为空，返回原始的 url
+    } else {
+        // 处理路径不为空的情况
+        if url.ends_with("/") {
+            format!("{}{}", url, path)
+        } else {
+            format!("{}/{}", url, path)
+        }
+    };
+
+    let response = client.get(url.as_str()).send().await?;
 
     let scan_info = get_format_info(response);
-
     let scan_info = scan_info.await;
 
     let status_code = scan_info.status_code;
     let title = scan_info.title;
     let content_length = scan_info.content_length;
+    let server = scan_info.server;
+    let jump_url = scan_info.jump_url;
 
     if u16_vec.contains(&status_code) {
         Ok(format!(
-            "{} [{}] [{}] [{}kb]",
-            url, status_code, title, content_length
+            "{} [{}] [{}] [{}] [{}] [{}]",
+            url, status_code, title, server, jump_url, content_length
         ))
     } else {
         Ok("".to_string())
@@ -76,7 +90,7 @@ mod tests {
     async fn test_send_request() {
         let client = create_http_client(10);
         let url = "https://www.baidu.com/";
-        let result = send_request(client, url, vec![200]).await;
-        println!("result:{}", result.unwrap());
+        let result = send_request(client, url, vec![200], "").await;
+        println!("result:{:?}", result);
     }
 }

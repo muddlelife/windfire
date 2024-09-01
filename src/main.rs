@@ -7,12 +7,13 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::task;
 
+mod args;
 mod httpclient;
 mod utils;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "1.0.0",
+    version = "1.2.0",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]
@@ -36,6 +37,10 @@ struct Args {
     /// Display the specified status code
     #[arg(short = 'c', long, default_value = "200")]
     status_code: String,
+
+    /// Designated path scan
+    #[arg(short = 'p', long, default_value = "")]
+    path: String,
 }
 
 #[tokio::main]
@@ -49,9 +54,11 @@ async fn main() {
         .map(|s| s.trim().parse::<u16>().ok().unwrap_or(200))
         .collect::<Vec<_>>();
 
+    let path = args.path;
+
     if let Some(url) = args.url {
         let client = create_http_client(args.timeout);
-        let result = send_request(client, &url, u16_vec).await;
+        let result = send_request(client, &url, u16_vec, &path).await;
         match result {
             Ok(result) => {
                 if result != "" {
@@ -73,9 +80,10 @@ async fn main() {
                     let semaphore = Arc::clone(&semaphore);
                     let client: Client = client.clone();
                     let u16_vec = u16_vec.clone();
+                    let path = path.clone();
                     futures.push(task::spawn(async move {
                         let permit = semaphore.acquire().await.unwrap();
-                        let result = send_request(client, url.as_str(), u16_vec).await;
+                        let result = send_request(client, url.as_str(), u16_vec, &path).await;
                         match result {
                             Ok(result) => {
                                 if result != "" {
