@@ -12,7 +12,7 @@ mod utils;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "1.2.0",
+    version = "1.3.0",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]
@@ -40,6 +40,10 @@ struct Args {
     /// Designated path scan
     #[arg(short = 'p', long, default_value = "")]
     path: String,
+
+    /// Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
+    #[arg(short = 'x', long)]
+    proxy: Option<String>,
 }
 
 #[tokio::main]
@@ -54,9 +58,10 @@ async fn main() {
         .collect::<Vec<_>>();
 
     let path = args.path;
+    let proxy = args.proxy;
 
     if let Some(url) = args.url {
-        let client = create_http_client(args.timeout);
+        let client = create_http_client(args.timeout, proxy);
         let result = send_request(client, &url, u16_vec, &path).await;
         match result {
             Ok(result) => {
@@ -72,7 +77,7 @@ async fn main() {
         let urls = read_file(&*file).await;
         match urls {
             Ok(urls) => {
-                let client = create_http_client(args.timeout);
+                let client = create_http_client(args.timeout, proxy);
                 let semaphore = Arc::new(Semaphore::new(args.thread));
                 let mut futures = Vec::new();
                 for url in urls {

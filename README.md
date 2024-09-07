@@ -1,5 +1,5 @@
 # 说明
-利用Rust编写的高效URL测活工具，主要特点快速、批量、轻量
+利用Rust编写的高效URL测活工具，主要特点快速、批量、轻量，支持异步。
 
 # 用法
 ## 帮助信息
@@ -15,6 +15,7 @@ Options:
   -s, --timeout <TIMEOUT>          The http request timeout [default: 10]
   -c, --status-code <STATUS_CODE>  Display the specified status code [default: 200]
   -p, --path <PATH>                Designated path scan [default: ]
+  -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
@@ -25,6 +26,7 @@ Options:
 * -s --timeout 设置http请求超时时间，默认10秒
 * -c --status-code 显示指定的状态码，默认200，可以输入多个，用逗号隔开，如200,403
 * -p --path 指定扫描路径，默认为空，不指定，如 -p admin
+* -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
 * -h --help 显示帮助信息
 * -V --version 显示版本信息
 
@@ -38,8 +40,16 @@ windfire -u https://www.baidu.com
 windfire -f urls.txt
 ```
 3. 指定路径测活
-```
+```shell
 windfire -f urls.txt -p admin -c 200
+```
+4. 批量执行目标，结果导出
+```shell
+windfire -f urls.txt > result.txt
+```
+5. 指定代理
+```shell
+windfire -f urls.txt -x socks5://127.0.0.1:1080
 ```
 ## 默认打印信息
 ```shell

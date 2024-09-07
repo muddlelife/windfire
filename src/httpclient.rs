@@ -6,7 +6,7 @@ pub const USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0";
 
 // 创建http客户端
-pub fn create_http_client(timeout: usize) -> Client {
+pub fn create_http_client(timeout: usize, proxy: Option<String>) -> Client {
     let mut headers = header::HeaderMap::new();
     headers.insert(
         header::USER_AGENT,
@@ -36,12 +36,25 @@ pub fn create_http_client(timeout: usize) -> Client {
         header::HeaderValue::from_static("en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7"),
     );
 
-    Client::builder()
-        .danger_accept_invalid_certs(true) // 忽略证书错误
-        .default_headers(headers)
-        .timeout(Duration::from_secs(timeout as u64))
-        .build()
-        .expect("httpclient create failed!")
+    match proxy {
+        Some(proxy_url) => {
+            Client::builder()
+                .danger_accept_invalid_certs(true) // 忽略证书错误
+                .default_headers(headers)
+                .proxy(reqwest::Proxy::all(proxy_url).expect("proxy url error"))
+                .timeout(Duration::from_secs(timeout as u64))
+                .build()
+                .expect("httpclient create failed!")
+        }
+        None => {
+            Client::builder()
+                .danger_accept_invalid_certs(true) // 忽略证书错误
+                .default_headers(headers)
+                .timeout(Duration::from_secs(timeout as u64))
+                .build()
+                .expect("httpclient create failed!")
+        }
+    }
 }
 
 pub async fn send_request(
@@ -88,8 +101,8 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn test_send_request() {
-        let client = create_http_client(10);
-        let url = "https://www.baidu.com/";
+        let client = create_http_client(10, Some("http://127.0.0.1:7897".to_string()));
+        let url = "https://www.baidu.com";
         let result = send_request(client, url, vec![200], "").await;
         println!("result:{:?}", result);
     }
