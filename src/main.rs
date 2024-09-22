@@ -12,7 +12,7 @@ mod utils;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "1.3.0",
+    version = "1.4.0",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]

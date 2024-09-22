@@ -95,15 +95,3 @@ pub async fn send_request(
         Ok("".to_string())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_send_request() {
-        let client = create_http_client(10, Some("http://127.0.0.1:7897".to_string()));
-        let url = "https://www.baidu.com";
-        let result = send_request(client, url, vec![200], "").await;
-        println!("result:{:?}", result);
-    }
-}
