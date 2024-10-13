@@ -1,6 +1,7 @@
-use crate::utils::get_format_info;
+use crate::utils::{get_format_info, ScanInfo};
 use reqwest::{header, Client};
 use std::time::Duration;
+use crossbeam::queue::SegQueue;
 
 pub const USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0";
@@ -62,6 +63,7 @@ pub async fn send_request(
     url: &str,
     u16_vec: Vec<u16>,
     path: &str,
+    seg_queue: &SegQueue<ScanInfo>,
 ) -> Result<String, reqwest::Error> {
     // 解析URL，如果path为空，则默认为/，如果有值，则加上，还需要处理url有没有/
     let url = if path.is_empty() {
@@ -77,9 +79,10 @@ pub async fn send_request(
 
     let response = client.get(url.as_str()).send().await?;
 
-    let scan_info = get_format_info(response);
+    let scan_info = get_format_info(response,url);
     let scan_info = scan_info.await;
 
+    let url = scan_info.url;
     let status_code = scan_info.status_code;
     let title = scan_info.title;
     let content_length = scan_info.content_length;
@@ -87,6 +90,14 @@ pub async fn send_request(
     let jump_url = scan_info.jump_url;
 
     if u16_vec.contains(&status_code) {
+        seg_queue.push(ScanInfo {
+            url: url.to_string(),
+            status_code,
+            title: title.to_string(),
+            server: server.to_string(),
+            jump_url: jump_url.to_string(),
+            content_length,
+        });
         Ok(format!(
             "{} [{}] [{}] [{}] [{}] [{}]",
             url, status_code, title, server, jump_url, content_length

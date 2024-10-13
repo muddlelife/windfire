@@ -1,15 +1,18 @@
 [package]
 name = "windfire"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["muddlelife <a2753411952@gmail.com>"]
 edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.17",features = ["derive"] }
+crossbeam = "0.8.4"
+csv = "1.3.0"
 futures = "0.3.30"
 lazy_static = "1.5.0"
 regex = "1.10.6"
 reqwest = { version = "0.12.7" ,features = ["socks"]}
+serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 
 [profile.release]

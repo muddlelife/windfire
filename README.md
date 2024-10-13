@@ -16,6 +16,7 @@ Options:
   -c, --status-code <STATUS_CODE>  Display the specified status code [default: 200]
   -p, --path <PATH>                Designated path scan [default: ]
   -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
+  -o, --output <OUTPUT>            Output is an csv document, Example: -o result.csv 
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
@@ -50,6 +51,10 @@ windfire -f urls.txt > result.txt
 5. 指定代理
 ```shell
 windfire -f urls.txt -x socks5://127.0.0.1:1080
+```
+6. 批量执行，可保存为csv文件
+```shell
+windfire -f urls.txt -o result.csv
 ```
 ## 默认打印信息
 ```shell

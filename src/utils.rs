@@ -4,6 +4,9 @@ use reqwest::Response;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use tokio::fs::File;
+use crossbeam::queue::SegQueue;
+use csv::WriterBuilder;
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 lazy_static! {
@@ -59,16 +62,18 @@ pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Erro
 }
 
 // 获取目标结果
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanInfo {
+    pub url: String,
     pub status_code: u16,
     pub title: String,
-    pub content_length: usize,
     pub server: String,
     pub jump_url: String, // 跳转后的url
+    pub content_length: usize,
 }
 
 // 根据响应获取响应结果
-pub async fn get_format_info(response: Response) -> ScanInfo {
+pub async fn get_format_info(response: Response, url: String) -> ScanInfo {
     let status_code = response.status().as_u16();
     let jump_url = response.url().to_string();
 
@@ -85,6 +90,7 @@ pub async fn get_format_info(response: Response) -> ScanInfo {
     let title = extract_title(&content).unwrap_or("".to_string());
 
     ScanInfo {
+        url,
         status_code,
         title,
         content_length,
@@ -139,4 +145,13 @@ pub fn cidr_to_ip_range(cidr: &str) -> Vec<String> {
     }
 
     ip_list
+}
+
+// 将结果转为csv表格
+pub fn queue_to_csv(scan_info_queue: &SegQueue<ScanInfo>, path: &str)  -> Result<(), Box<dyn std::error::Error>>{
+    let mut wtr = WriterBuilder::new().from_path(path)?;
+    while let Some(info) = scan_info_queue.pop() {
+        wtr.serialize(info)?;
+    }
+    Ok(())
 }

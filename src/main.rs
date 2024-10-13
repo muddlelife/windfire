@@ -1,9 +1,10 @@
 use crate::httpclient::{create_http_client, send_request};
-use crate::utils::read_file;
+use crate::utils::{queue_to_csv, read_file, ScanInfo};
 use clap::Parser;
 use futures::future::join_all;
 use reqwest::Client;
 use std::sync::Arc;
+use crossbeam::queue::SegQueue;
 use tokio::sync::Semaphore;
 use tokio::task;
 
@@ -12,7 +13,7 @@ mod utils;
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "1.4.0",
+    version = "1.5.0",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]
@@ -44,6 +45,10 @@ struct Args {
     /// Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
     #[arg(short = 'x', long)]
     proxy: Option<String>,
+
+    /// Output is an csv document, Example: -o result.csv
+    #[arg(short = 'o', long)]
+    output: Option<String>,
 }
 
 #[tokio::main]
@@ -59,10 +64,11 @@ async fn main() {
 
     let path = args.path;
     let proxy = args.proxy;
+    let seg_queue: Arc<SegQueue<ScanInfo>> = Arc::new(SegQueue::new());
 
     if let Some(url) = args.url {
         let client = create_http_client(args.timeout, proxy);
-        let result = send_request(client, &url, u16_vec, &path).await;
+        let result = send_request(client, &url, u16_vec, &path, &seg_queue).await;
         match result {
             Ok(result) => {
                 if result != "" {
@@ -85,9 +91,10 @@ async fn main() {
                     let client: Client = client.clone();
                     let u16_vec = u16_vec.clone();
                     let path = path.clone();
+                    let seg_queue = Arc::clone(&seg_queue);
                     futures.push(task::spawn(async move {
                         let permit = semaphore.acquire().await.unwrap();
-                        let result = send_request(client, url.as_str(), u16_vec, &path).await;
+                        let result = send_request(client, url.as_str(), u16_vec, &path, &seg_queue).await;
                         match result {
                             Ok(result) => {
                                 if result != "" {
@@ -100,6 +107,10 @@ async fn main() {
                     }));
                 }
                 join_all(futures).await;
+                // 保存结果为CSV
+                if let Some(output) = args.output {
+                    queue_to_csv(&seg_queue, output.as_str()).ok();
+                }
             }
             Err(e) => {
                 println!("{}", e)
