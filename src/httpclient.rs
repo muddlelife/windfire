@@ -1,10 +1,25 @@
-use crate::utils::{get_format_info, ScanInfo};
-use reqwest::{header, Client};
-use std::time::Duration;
+use crate::{
+    utils::{get_favicon_url, get_fofa_iconhash, get_format_info},
+    FINGER_DATA,
+};
 use crossbeam::queue::SegQueue;
+use reqwest::{header, Client};
+use serde::Serialize;
+use std::time::Duration;
 
 pub const USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0";
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PrintInfo {
+    pub url: String,
+    pub status_code: u16,
+    pub title: String,
+    pub server: String,
+    pub jump_url: String,
+    pub content_length: usize,
+    pub cms: Vec<String>,
+}
 
 // 创建http客户端
 pub fn create_http_client(timeout: usize, proxy: Option<String>) -> Client {
@@ -63,7 +78,7 @@ pub async fn send_request(
     url: &str,
     u16_vec: Vec<u16>,
     path: &str,
-    seg_queue: &SegQueue<ScanInfo>,
+    seg_queue: &SegQueue<PrintInfo>,
 ) -> Result<String, reqwest::Error> {
     // 解析URL，如果path为空，则默认为/，如果有值，则加上，还需要处理url有没有/
     let url = if path.is_empty() {
@@ -79,7 +94,7 @@ pub async fn send_request(
 
     let response = client.get(url.as_str()).send().await?;
 
-    let scan_info = get_format_info(response,url);
+    let scan_info = get_format_info(response, url);
     let scan_info = scan_info.await;
 
     let url = scan_info.url;
@@ -88,19 +103,66 @@ pub async fn send_request(
     let content_length = scan_info.content_length;
     let server = scan_info.server;
     let jump_url = scan_info.jump_url;
+    let body = scan_info.body;
+    let header = scan_info.header;
+
+    // 处理url 变为 协议 + 域名 + 端口 + /favicon.ico
+    let favicon_url = get_favicon_url(&url).unwrap_or_else(|_| "".to_string());
+
+    // 获取 icon
+    let icon_hash = get_fofa_iconhash(favicon_url, client)
+        .await
+        .unwrap_or_else(|_| "".to_string());
+    let mut cms_list: Vec<String> = Vec::new();
+
+    // 然后进行指纹匹配，如果能匹配到，则返回cms，遍历指纹
+    for finger in &*FINGER_DATA {
+        let method = finger.method.to_string();
+        let location = finger.location.to_string();
+        let keyword = finger.keyword.clone();
+
+        if method == "keyword" {
+            // 说明为关键词匹配
+            if location == "body" {
+                // 说明是body匹配,keyword 词组都在 body中
+                let all_found = keyword.iter().all(|s| body.contains(s));
+                if all_found {
+                    // 说明匹配成功
+                    cms_list.push(finger.cms.to_string());
+                }
+            } else if location == "header" {
+                // 说明是header匹配
+                let all_found = keyword.iter().all(|s| header.contains(s));
+                if all_found {
+                    // 说明匹配成功
+                    cms_list.push(finger.cms.to_string());
+                }
+            }
+        } else if method == "faviconhash" {
+            // 说明是faviconhash匹配
+            if icon_hash == finger.keyword[0] {
+                // 说明匹配成功
+                cms_list.push(finger.cms.to_string());
+            }
+        }
+    }
+
+    // 对 cms_list 进行去重
+    cms_list.dedup();
 
     if u16_vec.contains(&status_code) {
-        seg_queue.push(ScanInfo {
+        seg_queue.push(PrintInfo {
             url: url.to_string(),
             status_code,
             title: title.to_string(),
             server: server.to_string(),
             jump_url: jump_url.to_string(),
             content_length,
+            cms: cms_list.clone(),
         });
         Ok(format!(
-            "{} [{}] [{}] [{}] [{}] [{}]",
-            url, status_code, title, server, jump_url, content_length
+            "{} [{}] [{}] [{}] [{}] [{}] {:?}",
+            url, status_code, title, server, jump_url, content_length, cms_list
         ))
     } else {
         Ok("".to_string())

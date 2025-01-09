@@ -1,17 +1,49 @@
+use crate::PrintInfo;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use crossbeam::queue::SegQueue;
+use csv::WriterBuilder;
 use lazy_static::lazy_static;
+use murmur3::murmur3_32;
 use regex::Regex;
-use reqwest::Response;
+use reqwest::{Client, Response};
+use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use tokio::fs::File;
-use crossbeam::queue::SegQueue;
-use csv::WriterBuilder;
-use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
+use url::Url;
 
 lazy_static! {
     // 定义一个全局静态的正则表达式，用于匹配 <title> 标签的内容
     static ref TITLE_REGEX: Regex = Regex::new(r"(?i)<title>(.*?)</title>").unwrap();
+}
+
+// csv保存格式
+#[derive(Debug, Serialize)]
+struct SaveInfo {
+    pub url: String,
+    pub status_code: u16,
+    pub title: String,
+    pub server: String,
+    pub jump_url: String, // 跳转后的url
+    pub content_length: usize,
+    pub cms: String,
+}
+
+impl SaveInfo {
+    fn new(print_info: PrintInfo) -> Self {
+        Self {
+            url: print_info.url,
+            status_code: print_info.status_code,
+            title: print_info.title,
+            server: print_info.server,
+            jump_url: print_info.jump_url,
+            content_length: print_info.content_length,
+            cms: print_info.cms.join(" || "),
+        }
+    }
 }
 
 pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Error> {
@@ -42,13 +74,11 @@ pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Erro
                     } else if port == "80" {
                         urls.push(format!("http://{}", ip));
                         continue;
-                    }
-                    else {
+                    } else {
                         urls.push(format!("http://{}", ip));
                         urls.push(format!("https://{}", ip));
                     }
-                }
-                else {
+                } else {
                     urls.push(format!("http://{}", ip));
                     urls.push(format!("https://{}", ip));
                 }
@@ -70,6 +100,8 @@ pub struct ScanInfo {
     pub server: String,
     pub jump_url: String, // 跳转后的url
     pub content_length: usize,
+    pub body: String,
+    pub header: String,
 }
 
 // 根据响应获取响应结果
@@ -84,10 +116,17 @@ pub async fn get_format_info(response: Response, url: String) -> ScanInfo {
         None => "".to_string(),
     };
 
-    let content = response.text().await.unwrap_or("".to_string());
+    let header = response
+        .headers()
+        .iter()
+        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap_or("")))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let body: String = response.text().await.unwrap_or("".to_string());
     // 获取长度
-    let content_length = content.len();
-    let title = extract_title(&content).unwrap_or("".to_string());
+    let content_length = body.len();
+    let title = extract_title(&body).unwrap_or("".to_string());
 
     ScanInfo {
         url,
@@ -96,6 +135,8 @@ pub async fn get_format_info(response: Response, url: String) -> ScanInfo {
         content_length,
         server,
         jump_url,
+        body,
+        header,
     }
 }
 
@@ -148,10 +189,99 @@ pub fn cidr_to_ip_range(cidr: &str) -> Vec<String> {
 }
 
 // 将结果转为csv表格
-pub fn queue_to_csv(scan_info_queue: &SegQueue<ScanInfo>, path: &str)  -> Result<(), Box<dyn std::error::Error>>{
+pub fn queue_to_csv(
+    scan_info_queue: &SegQueue<PrintInfo>,
+    path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut wtr = WriterBuilder::new().from_path(path)?;
     while let Some(info) = scan_info_queue.pop() {
-        wtr.serialize(info)?;
+        // println!("{:?}", info);
+        // wtr.serialize(info)?;
+        // 如果 cms 是一个 Vec<String>，那么我们可能需要将它转换成一个逗号分隔的字符串
+        let new_info = SaveInfo::new(info);
+
+        // 将数据序列化到 CSV 文件中
+        match wtr.serialize(new_info) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Error serializing data: {:?}", e);
+            }
+        };
     }
     Ok(())
+}
+
+// 计算 md5 hash
+// pub async fn get_md5_iconhash(
+//     icon_url: String,
+//     client: Client,
+// ) -> Result<String, Box<dyn std::error::Error>> {
+//     if icon_url == "".to_string() {
+//         return Ok("".to_string());
+//     }
+//
+//     let resp = client.get(icon_url).send().await?;
+//     // 确保请求成功
+//     if resp.status().is_success() {
+//         // 获取 favicon 的二进制数据
+//         // 将响应体作为字节数组读取
+//         let bytes = resp.bytes().await?;
+//
+//         // 创建一个 MD5 哈希对象并更新它
+//         let hash = md5::compute(&bytes);
+//
+//         // 将哈希值转换为十六进制字符串
+//         Ok(format!("{:x}", hash))
+//     } else {
+//         Err("".into())
+//     }
+// }
+
+// 解析基础url
+pub fn get_favicon_url(base_url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // 解析基础 URL
+    let parsed_url = Url::parse(base_url)?;
+
+    // 拼接 favicon.ico
+    let favicon_url = parsed_url.join("favicon.ico")?;
+
+    // 返回拼接后的 URL
+    Ok(favicon_url.to_string())
+}
+
+// 计算 fofa hash
+pub async fn get_fofa_iconhash(
+    icon_url: String,
+    client: Client,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if icon_url == "".to_string() {
+        return Ok("".to_string());
+    }
+
+    let resp = client.get(icon_url).send().await?;
+    // 确保请求成功
+    if resp.status().is_success() {
+        let bytes = resp.bytes().await?;
+
+        // 进行 Base64 编码
+        let base64_str = STANDARD.encode(&bytes);
+
+        // 每 76 个字符插入一个换行符
+        let with_newlines: String = base64_str
+            .as_bytes()
+            .chunks(76) // 每 76 个字符分为一组
+            .map(|chunk| String::from_utf8_lossy(chunk)) // 转为字符串
+            .collect::<Vec<_>>() // 收集到 Vec<String>
+            .join("\n"); // 在每组之间插入换行符
+
+        // 然后对进行 mmnh编码
+        let mut cursor = Cursor::new(with_newlines + "\n");
+        let hash_u32 = murmur3_32(&mut cursor, 0)?;
+        let hash_i32 = hash_u32 as i32;
+
+        // 将哈希值转换为十六进制字符串
+        Ok(format!("{}", hash_i32.to_string()))
+    } else {
+        Err("".into())
+    }
 }

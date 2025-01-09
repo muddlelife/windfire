@@ -1,6 +1,17 @@
 # 说明
 利用Rust编写的高效URL测活工具，主要特点快速、批量、轻量，支持异步。
 
+# 功能介绍
+| 功能  |               描述               |
+|:---:|:------------------------------:|
+| 资产测活 |     对目标资产（域名、IP、URL） 进行测活      |
+| 支持代理 |支持多种代理，包括 HTTP、HTTPS 和 SOCKS 代理 |
+|状态码过滤|   对 HTTP 响应的状态码进行过滤，默认只保留200   |
+|指定路径|       支持指定路径进行测活，默认为根目录        |
+|指纹识别|         采用开源指纹库识别网站CMS         |
+|高并发|          支持高并发请求、支持异步          |
+
+
 # 用法
 ## 帮助信息
 ```text
@@ -16,7 +27,7 @@ Options:
   -c, --status-code <STATUS_CODE>  Display the specified status code [default: 200]
   -p, --path <PATH>                Designated path scan [default: ]
   -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
-  -o, --output <OUTPUT>            Output is an csv document, Example: -o result.csv 
+  -o, --output <OUTPUT>            Output is an csv document, Example: -o result.csv
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
@@ -28,6 +39,7 @@ Options:
 * -c --status-code 显示指定的状态码，默认200，可以输入多个，用逗号隔开，如200,403
 * -p --path 指定扫描路径，默认为空，不指定，如 -p admin
 * -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
+* -o --output 输出为csv文件，如：-o result.csv
 * -h --help 显示帮助信息
 * -V --version 显示版本信息
 
@@ -58,6 +70,6 @@ windfire -f urls.txt -o result.csv
 ```
 ## 默认打印信息
 ```shell
-https://www.baidu.com [200] [百度一下，你就知道] [BWS/1.1] [https://www.baidu.com/] [414219]
+https://www.baidu.com [200] [百度一下，你就知道] [BWS/1.1] [https://www.baidu.com/] [414219] ["CMS"]
 ```
-包括：起始地址（url）、状态码（status_code）、标题（title）、服务器（server）、跳转后地址（jump_url）、响应页面大小（content_length）
+包括：起始地址（url）、状态码（status_code）、标题（title）、服务器（server）、跳转后地址（jump_url）、响应页面大小（content_length）、指纹信息

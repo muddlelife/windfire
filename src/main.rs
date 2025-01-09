@@ -1,15 +1,31 @@
-use crate::httpclient::{create_http_client, send_request};
-use crate::utils::{queue_to_csv, read_file, ScanInfo};
+use crate::httpclient::{create_http_client, send_request, PrintInfo};
+use crate::utils::{queue_to_csv, read_file};
 use clap::Parser;
-use futures::future::join_all;
-use reqwest::Client;
-use std::sync::Arc;
 use crossbeam::queue::SegQueue;
+use futures::future::join_all;
+use once_cell::sync::Lazy;
+use reqwest::Client;
+use serde::Deserialize;
+use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::task;
 
 mod httpclient;
 mod utils;
+
+#[derive(Debug, Deserialize)]
+pub struct Finger {
+    cms: String,
+    method: String,
+    location: String,
+    keyword: Vec<String>,
+}
+
+// 使用 once_cell::Lazy 来延迟初始化静态变量
+static FINGER_DATA: Lazy<Vec<Finger>> = Lazy::new(|| {
+    let json_data = include_str!("finger.json"); // 使用 include_str! 将文件嵌入到程序中
+    serde_json::from_str(json_data).expect("Failed to parse JSON") // 解析 JSON 数据
+});
 
 #[derive(Parser, Debug)]
 #[command(
@@ -64,7 +80,7 @@ async fn main() {
 
     let path = args.path;
     let proxy = args.proxy;
-    let seg_queue: Arc<SegQueue<ScanInfo>> = Arc::new(SegQueue::new());
+    let seg_queue: Arc<SegQueue<PrintInfo>> = Arc::new(SegQueue::new());
 
     if let Some(url) = args.url {
         let client = create_http_client(args.timeout, proxy);
@@ -90,11 +106,12 @@ async fn main() {
                     let semaphore = Arc::clone(&semaphore);
                     let client: Client = client.clone();
                     let u16_vec = u16_vec.clone();
-                    let path = path.clone();
+                    let path: String = path.clone();
                     let seg_queue = Arc::clone(&seg_queue);
                     futures.push(task::spawn(async move {
                         let permit = semaphore.acquire().await.unwrap();
-                        let result = send_request(client, url.as_str(), u16_vec, &path, &seg_queue).await;
+                        let result =
+                            send_request(client, url.as_str(), u16_vec, &path, &seg_queue).await;
                         match result {
                             Ok(result) => {
                                 if result != "" {
