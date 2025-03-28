@@ -1,6 +1,6 @@
-use crate::PrintInfo;
-use base64::engine::general_purpose::STANDARD;
+use crate::httpclient::PrintInfo;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use crossbeam::queue::SegQueue;
 use csv::WriterBuilder;
 use lazy_static::lazy_static;
@@ -31,7 +31,6 @@ struct SaveInfo {
     pub content_length: usize,
     pub cms: String,
 }
-
 impl SaveInfo {
     fn new(print_info: PrintInfo) -> Self {
         Self {
@@ -46,6 +45,7 @@ impl SaveInfo {
     }
 }
 
+// 读文件
 pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Error> {
     let file = File::open(path).await?;
     let reader = BufReader::new(file);
@@ -105,7 +105,7 @@ pub struct ScanInfo {
 }
 
 // 根据响应获取响应结果
-pub async fn get_format_info(response: Response, url: String) -> ScanInfo {
+pub async fn get_format_info(response: Response, url: &str) -> ScanInfo {
     let status_code = response.status().as_u16();
     let jump_url = response.url().to_string();
 
@@ -129,7 +129,7 @@ pub async fn get_format_info(response: Response, url: String) -> ScanInfo {
     let title = extract_title(&body).unwrap_or("".to_string());
 
     ScanInfo {
-        url,
+        url: url.to_string(),
         status_code,
         title,
         content_length,
@@ -148,94 +148,6 @@ fn extract_title(html: &str) -> Option<String> {
         None
     }
 }
-
-// 判断line是不是 CIDR格式，如果是，返回true，否则返回false
-pub fn is_cidr(line: &str) -> bool {
-    // 匹配 CIDR 格式，如 192.168.0.0/24
-    let re = Regex::new(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$").unwrap();
-    re.is_match(line)
-}
-
-// 将CIDR格式转换为ip地址，用vec 返回
-pub fn cidr_to_ip_range(cidr: &str) -> Vec<String> {
-    // 分割 CIDR 格式，提取 IP 地址和前缀长度
-    let mut parts = cidr.split('/');
-    let base_ip = parts.next().unwrap();
-    let prefix_len: u32 = parts.next().unwrap().parse().unwrap();
-
-    // 将基础 IP 地址解析为 Ipv4Addr
-    let base_ip: Ipv4Addr = Ipv4Addr::from_str(base_ip).unwrap();
-
-    // 将 Ipv4Addr 转换为 u32，便于后续操作
-    let base_ip_u32: u32 = u32::from(base_ip);
-
-    // 计算掩码
-    let mask: u32 = !((1 << (32 - prefix_len)) - 1);
-
-    // 网络地址，即 base_ip_u32 & mask
-    let network_ip_u32 = base_ip_u32 & mask;
-
-    // 广播地址，即 network_ip_u32 | !mask
-    let broadcast_ip_u32 = network_ip_u32 | !mask;
-
-    // 生成 IP 地址列表
-    let mut ip_list = Vec::new();
-    for ip_u32 in network_ip_u32..=broadcast_ip_u32 {
-        let ip = Ipv4Addr::from(ip_u32);
-        ip_list.push(ip.to_string());
-    }
-
-    ip_list
-}
-
-// 将结果转为csv表格
-pub fn queue_to_csv(
-    scan_info_queue: &SegQueue<PrintInfo>,
-    path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut wtr = WriterBuilder::new().from_path(path)?;
-    while let Some(info) = scan_info_queue.pop() {
-        // println!("{:?}", info);
-        // wtr.serialize(info)?;
-        // 如果 cms 是一个 Vec<String>，那么我们可能需要将它转换成一个逗号分隔的字符串
-        let new_info = SaveInfo::new(info);
-
-        // 将数据序列化到 CSV 文件中
-        match wtr.serialize(new_info) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("Error serializing data: {:?}", e);
-            }
-        };
-    }
-    Ok(())
-}
-
-// 计算 md5 hash
-// pub async fn get_md5_iconhash(
-//     icon_url: String,
-//     client: Client,
-// ) -> Result<String, Box<dyn std::error::Error>> {
-//     if icon_url == "".to_string() {
-//         return Ok("".to_string());
-//     }
-//
-//     let resp = client.get(icon_url).send().await?;
-//     // 确保请求成功
-//     if resp.status().is_success() {
-//         // 获取 favicon 的二进制数据
-//         // 将响应体作为字节数组读取
-//         let bytes = resp.bytes().await?;
-//
-//         // 创建一个 MD5 哈希对象并更新它
-//         let hash = md5::compute(&bytes);
-//
-//         // 将哈希值转换为十六进制字符串
-//         Ok(format!("{:x}", hash))
-//     } else {
-//         Err("".into())
-//     }
-// }
 
 // 解析基础url
 pub fn get_favicon_url(base_url: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -283,5 +195,77 @@ pub async fn get_fofa_iconhash(
         Ok(format!("{}", hash_i32.to_string()))
     } else {
         Err("".into())
+    }
+}
+
+// 判断line是不是 CIDR格式，如果是，返回true，否则返回false
+pub fn is_cidr(line: &str) -> bool {
+    // 匹配 CIDR 格式，如 192.168.0.0/24
+    let re = Regex::new(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$").unwrap();
+    re.is_match(line)
+}
+
+// 将CIDR格式转换为ip地址，用vec 返回
+pub fn cidr_to_ip_range(cidr: &str) -> Vec<String> {
+    // 分割 CIDR 格式，提取 IP 地址和前缀长度
+    let mut parts = cidr.split('/');
+    let base_ip = parts.next().unwrap();
+    let prefix_len: u32 = parts.next().unwrap().parse().unwrap();
+
+    // 将基础 IP 地址解析为 Ipv4Addr
+    let base_ip: Ipv4Addr = Ipv4Addr::from_str(base_ip).unwrap();
+
+    // 将 Ipv4Addr 转换为 u32，便于后续操作
+    let base_ip_u32: u32 = u32::from(base_ip);
+
+    // 计算掩码
+    let mask: u32 = !((1 << (32 - prefix_len)) - 1);
+
+    // 网络地址，即 base_ip_u32 & mask
+    let network_ip_u32 = base_ip_u32 & mask;
+
+    // 广播地址，即 network_ip_u32 | !mask
+    let broadcast_ip_u32 = network_ip_u32 | !mask;
+
+    // 生成 IP 地址列表
+    let mut ip_list = Vec::new();
+    for ip_u32 in network_ip_u32..=broadcast_ip_u32 {
+        let ip = Ipv4Addr::from(ip_u32);
+        ip_list.push(ip.to_string());
+    }
+    ip_list
+}
+
+// 将结果转为csv表格
+pub fn queue_to_csv(
+    scan_info_queue: &SegQueue<PrintInfo>,
+    path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut wtr = WriterBuilder::new().from_path(path)?;
+    while let Some(info) = scan_info_queue.pop() {
+        // 如果 cms 是一个 Vec<String>，那么我们可能需要将它转换成一个逗号分隔的字符串
+        let new_info = SaveInfo::new(info);
+
+        // 将数据序列化到 CSV 文件中
+        match wtr.serialize(new_info) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Error serializing data: {:?}", e);
+            }
+        };
+    }
+    Ok(())
+}
+
+// url加路径
+pub fn add_path(url: &str, path: &str) -> String {
+    if path.is_empty() {
+        url.to_string()
+    } else {
+        if url.ends_with("/") {
+            format!("{}{}", url, path)
+        } else {
+            format!("{}/{}", url, path)
+        }
     }
 }

@@ -36,7 +36,7 @@ Options:
 * -u --url 输入一个url
 * -f --file 输入一个文件路径，文件内每行一个url，txt文本
 * -s --timeout 设置http请求超时时间，默认10秒
-* -c --status-code 显示指定的状态码，默认200，可以输入多个，用逗号隔开，如200,403
+* -c --status-code 显示指定的状态码，默认全部打印；加上参数则进行筛选，可以输入多个，用逗号隔开，如200,403
 * -p --path 指定扫描路径，默认为空，不指定，如 -p admin
 * -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
 * -o --output 输出为csv文件，如：-o result.csv

@@ -526,14 +526,6 @@
     ]
   },
   {
-    "cms": "Shiro",
-    "method": "keyword",
-    "location": "header",
-    "keyword": [
-      "rememberMe="
-    ]
-  },
-  {
     "cms": "Dreamer CMS-Shiro",
     "method": "keyword",
     "location": "header",
@@ -643,14 +635,6 @@
     "location": "header",
     "keyword": [
       "dreamer-cms"
-    ]
-  },
-  {
-    "cms": "Shiro",
-    "method": "keyword",
-    "location": "header",
-    "keyword": [
-      "=deleteMe"
     ]
   },
   {
