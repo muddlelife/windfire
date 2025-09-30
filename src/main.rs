@@ -1,3 +1,5 @@
+extern crate core;
+
 mod httpclient;
 mod utils;
 
@@ -26,7 +28,7 @@ static FINGER_DATA: Lazy<Vec<Finger>> = Lazy::new(|| {
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "0.0.1",
+    version = "0.0.2",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]
@@ -101,7 +103,7 @@ async fn main() {
         }
     } else if let Some(file) = args.file {
         // file
-        let urls = read_file(&file).await;
+        let urls = read_file(&file);
         match urls {
             Ok(urls) => {
                 let client = create_http_client(args.timeout, proxy);

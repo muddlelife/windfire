@@ -1,6 +1,7 @@
 use crate::httpclient::PrintInfo;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use core::str;
 use crossbeam::queue::SegQueue;
 use csv::WriterBuilder;
 use lazy_static::lazy_static;
@@ -8,11 +9,12 @@ use murmur3::murmur3_32;
 use regex::Regex;
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
-use std::io::Cursor;
+use std::error::Error;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::io::{Cursor, Write};
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use tokio::fs::File;
-use tokio::io::{AsyncBufReadExt, BufReader};
 use url::Url;
 
 lazy_static! {
@@ -46,12 +48,14 @@ impl SaveInfo {
 }
 
 // 读文件
-pub(crate) async fn read_file(path: &str) -> Result<Vec<String>, tokio::io::Error> {
-    let file = File::open(path).await?;
+pub fn read_file(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let file = File::open(path)?;
     let reader = BufReader::new(file);
     let mut urls = Vec::new();
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next_line().await? {
+
+    // let mut lines = reader.lines();
+    for line in reader.lines() {
+        let line = line?;
         if line.starts_with("http://") || line.starts_with("https://") {
             urls.push(line);
             continue;
@@ -240,8 +244,12 @@ pub fn cidr_to_ip_range(cidr: &str) -> Vec<String> {
 pub fn queue_to_csv(
     scan_info_queue: &SegQueue<PrintInfo>,
     path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut wtr = WriterBuilder::new().from_path(path)?;
+) -> Result<(), Box<dyn Error>> {
+    let mut file = File::create(path)?;
+
+    file.write_all(b"\xEF\xBB\xBF")?;
+    let mut wtr = WriterBuilder::new().from_writer(file);
+
     while let Some(info) = scan_info_queue.pop() {
         // 如果 cms 是一个 Vec<String>，那么我们可能需要将它转换成一个逗号分隔的字符串
         let new_info = SaveInfo::new(info);
