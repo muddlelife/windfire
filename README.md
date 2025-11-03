@@ -27,7 +27,7 @@ Options:
   -c, --status-code <STATUS_CODE>  Display the specified status code [default: 200]
   -p, --path <PATH>                Designated path scan [default: ]
   -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
-  -o, --output <OUTPUT>            Output is an csv document, Example: -o result.csv
+  -o, --output <OUTPUT>            Output can be a CSV or JSON file. Example: -o result.csv or -o result.json
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
@@ -39,7 +39,7 @@ Options:
 * -c --status-code 显示指定的状态码，默认全部打印；加上参数则进行筛选，可以输入多个，用逗号隔开，如200,403
 * -p --path 指定扫描路径，默认为空，不指定，如 -p admin
 * -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
-* -o --output 输出为csv文件，如：-o result.csv
+* -o --output 支持将扫描结果导出为csv文件或者json文件，如：-o result.csv 或者 -o result.json
 * -h --help 显示帮助信息
 * -V --version 显示版本信息
 
@@ -64,7 +64,7 @@ windfire -f urls.txt > result.txt
 ```shell
 windfire -f urls.txt -x socks5://127.0.0.1:1080
 ```
-6. 批量执行，可保存为csv文件
+6. 批量执行，可保存为csv文件或者json格式
 ```shell
 windfire -f urls.txt -o result.csv
 ```

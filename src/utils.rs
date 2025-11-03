@@ -265,6 +265,26 @@ pub fn queue_to_csv(
     Ok(())
 }
 
+// 保存为json格式
+pub fn queue_to_json(
+    scan_info_queue: &SegQueue<PrintInfo>,
+    path: &str,
+) -> Result<(), Box<dyn Error>> {
+    let mut data = Vec::new();
+
+    // 从队列中取出所有数据
+    while let Some(info) = scan_info_queue.pop() {
+        let save_info = SaveInfo::new(info);
+        data.push(save_info);
+    }
+
+    // 序列化为 JSON 并写入文件
+    let file = File::create(path)?;
+    serde_json::to_writer_pretty(file, &data)?; // 使用 to_writer_pretty 可读性更好
+
+    Ok(())
+}
+
 // url加路径
 pub fn add_path(url: &str, path: &str) -> String {
     if path.is_empty() {

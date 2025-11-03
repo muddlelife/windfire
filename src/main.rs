@@ -4,7 +4,7 @@ mod httpclient;
 mod utils;
 
 use crate::httpclient::{PrintInfo, create_http_client, send_request};
-use crate::utils::{add_path, queue_to_csv, read_file};
+use crate::utils::{add_path, queue_to_csv, queue_to_json, read_file};
 use clap::Parser;
 use crossbeam::queue::SegQueue;
 use futures::StreamExt;
@@ -28,7 +28,7 @@ static FINGER_DATA: Lazy<Vec<Finger>> = Lazy::new(|| {
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "0.0.2",
+    version = "0.0.3",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight"
 )]
@@ -62,7 +62,7 @@ struct Args {
     #[arg(short = 'x', long)]
     proxy: Option<String>,
 
-    /// Output is an csv document, Example: -o result.csv
+    /// Output can be a CSV or JSON file. Example: -o result.csv or -o result.json
     #[arg(short = 'o', long)]
     output: Option<String>,
 }
@@ -130,7 +130,14 @@ async fn main() {
                     .await;
 
                 if let Some(output) = args.output {
-                    queue_to_csv(&seg_queue, output.as_str()).ok();
+                    // 修改下两种格式，如果后缀为csv则保存为csv格式，如果为json则保存为json格式
+                    if output.ends_with(".csv") {
+                        queue_to_csv(&seg_queue, output.as_str()).ok();
+                    } else if output.ends_with(".json") {
+                        queue_to_json(&seg_queue, output.as_str()).ok();
+                    } else {
+                        println!("The saved results are only available in CSV and JSON formats")
+                    }
                 }
             }
             Err(e) => {
