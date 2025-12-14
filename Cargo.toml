@@ -1,15 +1,13 @@
 [package]
 name = "windfire"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
-crossbeam = "0.8.4"
 reqwest = { version = "0.12.23", features = ["socks"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"] }
-lazy_static = "1.5.0"
 regex = "1.11.3"
 base64 = "0.22.1"
 murmur3 = "0.5.2"
