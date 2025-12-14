@@ -21,7 +21,7 @@ impl ResponseInfo {
         original_url: &str,
         resp: Response,
         favicon_hash: Option<String>,
-    ) -> Result<Self, reqwest::Error> {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let status = resp.status().as_u16();
         let url = original_url.to_string();
         let jump_url = resp.url().to_string();

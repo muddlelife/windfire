@@ -21,30 +21,24 @@ pub async fn scan_one(
     fingerprints: &[Fingerprint],
     status_code: &[u16],
 ) -> Result<SaveInfo, Box<dyn std::error::Error + Send + Sync>> {
-    let resp = request::fetch(client, url).await?;
+    let resp = request::fetch(client, url, status_code).await?;
+    let mut matched: Vec<String> = Vec::new();
 
-    // 对状态码进行过滤
-    if status_code.contains(&resp.status) || status_code.is_empty() {
-        let mut matched: Vec<String> = Vec::new();
-
-        for fp in fingerprints {
-            if fp.matches(&resp) {
-                matched.push(fp.cms.clone());
-            }
+    for fp in fingerprints {
+        if fp.matches(&resp) {
+            matched.push(fp.cms.clone());
         }
-        matched.sort();
-        matched.dedup();
-
-        Ok(SaveInfo {
-            url: resp.url,
-            status: resp.status,
-            title: resp.title,
-            server: resp.server,
-            content_length: resp.content_length,
-            jump_url: resp.jump_url,
-            cms: matched.join("||"),
-        })
-    } else {
-        Err("filtered by status code".into())
     }
+    matched.sort();
+    matched.dedup();
+
+    Ok(SaveInfo {
+        url: resp.url,
+        status: resp.status,
+        title: resp.title,
+        server: resp.server,
+        content_length: resp.content_length,
+        jump_url: resp.jump_url,
+        cms: matched.join("||"),
+    })
 }
