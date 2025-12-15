@@ -19,9 +19,12 @@ impl Output for CsvOutput {
 
         let mut wtr = WriterBuilder::new().from_writer(file);
 
-        match wtr.serialize(results) {
-            Ok(_) => {}
-            Err(e) => panic!("Error writing CSV: {}", e),
+        for record in results {
+            if let Err(e) = wtr.serialize(record) {
+                panic!("Error writing record: {}", e);
+            }
         }
+
+        wtr.flush().expect("Failed to flush CSV writer");
     }
 }
