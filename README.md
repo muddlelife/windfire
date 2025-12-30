@@ -1,19 +1,24 @@
-# 说明
-利用Rust编写的高效URL测活工具，主要特点快速、批量、轻量，支持异步。
+# Description
 
-# 功能介绍
-| 功能  |                             描述 |
-|-----|-------------------------------|
-| 资产测活 |对目标资产（域名、IP、URL） 进行测活 |
-| 支持代理 |支持多种代理，包括 HTTP、HTTPS 和 SOCKS 代理 |
-| 状态码过滤|对 HTTP 响应的状态码进行过滤，默认只保留200 |
-| 指定路径 |支持指定路径进行测活，默认为根目录 |
-| 指纹识别 |采用开源指纹库识别网站CMS |
-| 高并发 |支持高并发请求、支持异步 |
+A high-performance URL liveness detection tool written in Rust.
+Designed to be fast, lightweight, and highly concurrent, with full asynchronous support.
 
+# 中文文档
+👉 [中文说明](./zh-CN/README.md)
 
-# 用法
-## 帮助信息
+# Features
+| Feature                  | Description                                                      |
+| ------------------------ | ---------------------------------------------------------------- |
+| Asset Liveness Detection | Check the availability of assets such as domains, IPs, and URLs  |
+| Proxy Support            | Supports HTTP, HTTPS, and SOCKS proxies                          |
+| Status Code Filtering    | Filter HTTP responses by status code (default: only 200)         |
+| Custom Path              | Supports specifying a custom path (default: `/`)                 |
+| Fingerprint Detection    | Identifies website CMS using an open-source fingerprint database |
+| High Concurrency         | Supports high concurrency and asynchronous execution             |
+
+# Usage
+
+## Help
 ```text
 An efficient and fast url survival detection tool
 
@@ -31,50 +36,61 @@ Options:
   -s, --timeout <TIMEOUT>          The http request timeout [default: 10]
   -c, --status-code <STATUS_CODE>  Display the specified status code
   -p, --path <PATH>                Designated path scan [default: ]
-  -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
-  -o, --output <OUTPUT>            Output can be a CSV or JSON file. Example: -o result.csv or -o result.json
-  -h, --help                       Print help (see more with '--help')
+  -x, --proxy <PROXY>              Supported Proxy socks5, http, and https
+  -o, --output <OUTPUT>            Output to CSV or JSON file
+  -h, --help                       Print help
   -V, --version                    Print version
 ```
-## 参数说明
-* -t --thread 设置线程数量，默认50
-* -u --url 输入一个目标，支持单个IP地址、IP段、域名、URL、host:port形式，默认扫描80和443端口
-* -f --file 输入一个文件路径，文件内每行一个目标，txt文本
-* -s --timeout 设置http请求超时时间，默认10秒
-* -c --status-code 显示指定的状态码，默认全部打印；加上参数则进行筛选，可以输入多个，用逗号隔开，如200,403
-* -p --path 指定扫描路径，默认为空，不指定，如 -p admin
-* -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
-* -o --output 支持将扫描结果导出为csv文件或者json文件，如：-o result.csv 或者 -o result.json
-* -h --help 显示帮助信息
-* -V --version 显示版本信息
 
-## 使用
-1. 单个目标指定
+## Parameter Description
+* -t, --thread Set the number of threads (default: 50)
+* -u, --url Specify a single target. Supports IP, IP range, domain, URL, or host:port.
+Defaults to scanning ports 80 and 443.
+* -f, --file Specify a file containing targets (one per line)
+* -s, --timeout Set HTTP request timeout (default: 10 seconds)
+* -c, --status-code Filter by specific HTTP status codes.
+Multiple values can be provided, separated by commas (e.g. 200,403)
+* -p, --path Specify a path to scan (default: empty)
+* -x, --proxy Proxy support (socks5, http, https), e.g. socks5://127.0.0.1:1080
+* -o, --output Export results to a CSV or JSON file, e.g. -o result.csv or -o result.json
+* -h, --help Display help information
+* -V, --version Show version information
+
+## Usage Examples
+
+1. Single target
 ```shell
 windfire -u https://www.baidu.com
 ```
-2. 批量执行目标
+2. Batch scan from file
 ```shell
 windfire -f urls.txt
 ```
-3. 指定路径测活
+3. Scan with a specific path
 ```shell
 windfire -f urls.txt -p admin -c 200
 ```
-4. 批量执行目标，结果导出
+4. Batch scan with output
 ```shell
 windfire -f urls.txt > result.txt
 ```
-5. 指定代理
+5. Use proxy
 ```shell
 windfire -f urls.txt -x socks5://127.0.0.1:1080
 ```
-6. 批量执行，可保存为csv文件或者json格式
+6. Export results to CSV or JSON
 ```shell
 windfire -f urls.txt -o result.csv
 ```
-## 默认打印信息
-```shell
+
+## Default Output Format
+```text
 https://www.baidu.com [200] [百度一下，你就知道] [BWS/1.1] [414219] ["CMS"]
 ```
-包括：起始地址（url）、状态码（status_code）、标题（title）、服务器（server）、响应页面大小（content_length）、指纹信息
+Output fields include:
+* URL
+* Status Code
+* Page Title
+* Server
+* Response Size
+* Fingerprint Information
