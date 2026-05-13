@@ -1,11 +1,17 @@
 // 主要做解析参数
 use url::Url;
 
-use clap::{ArgGroup, Parser};
+use clap::{ArgGroup, Parser, ValueEnum};
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+pub enum ScanMode {
+    Alive,
+    Full,
+}
 
 #[derive(Parser, Debug)]
 #[command(
-    version = "0.0.4",
+    version = "0.5.0",
     about = "An efficient and fast url survival detection tool",
     long_about = "Efficient URL activity tester written in Rust. Fast, batch, and lightweight",
     group(
@@ -46,6 +52,14 @@ pub struct Args {
     /// Output can be a CSV or JSON file. Example: -o result.csv or -o result.json
     #[arg(short = 'o', long, value_parser = validate_output_format)]
     pub output: Option<String>,
+
+    /// Scan mode: alive (liveness only) or full (with fingerprint)
+    #[arg(long, value_enum, default_value_t = ScanMode::Full)]
+    pub mode: ScanMode,
+
+    /// Max requests per second (0 means unlimited)
+    #[arg(long, default_value_t = 0)]
+    pub rate: u32,
 }
 
 // 验证线程参数，不超过5000

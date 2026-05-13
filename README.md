@@ -14,6 +14,8 @@ Designed to be fast, lightweight, and highly concurrent, with full asynchronous 
 | Status Code Filtering    | Filter HTTP responses by status code (default: only 200)         |
 | Custom Path              | Supports specifying a custom path (default: `/`)                 |
 | Fingerprint Detection    | Identifies website CMS using an open-source fingerprint database |
+| Layered Scan Mode        | `alive` mode for liveness-only and `full` mode for fingerprinting |
+| Scan Rate Control        | `--rate` controls requests per second to protect targets         |
 | High Concurrency         | Supports high concurrency and asynchronous execution             |
 
 # Usage
@@ -38,6 +40,8 @@ Options:
   -p, --path <PATH>                Designated path scan [default: ]
   -x, --proxy <PROXY>              Supported Proxy socks5, http, and https
   -o, --output <OUTPUT>            Output to CSV or JSON file
+      --mode <MODE>                Scan mode: alive or full [default: full]
+      --rate <RATE>                Max requests per second (0 means unlimited) [default: 0]
   -h, --help                       Print help
   -V, --version                    Print version
 ```
@@ -53,6 +57,8 @@ Multiple values can be provided, separated by commas (e.g. 200,403)
 * -p, --path Specify a path to scan (default: empty)
 * -x, --proxy Proxy support (socks5, http, https), e.g. socks5://127.0.0.1:1080
 * -o, --output Export results to a CSV or JSON file, e.g. -o result.csv or -o result.json
+* --mode Scan mode: `alive` (liveness only) or `full` (liveness + fingerprint), default `full`
+* --rate Max requests per second. `0` means unlimited (default)
 * -h, --help Display help information
 * -V, --version Show version information
 
@@ -94,3 +100,10 @@ Output fields include:
 * Server
 * Response Size
 * Fingerprint Information
+
+## Release
+
+### v0.5.0
+- Added layered scan mode: `--mode alive|full`.
+- Added global request rate control: `--rate`.
+- Kept compatibility with existing output and filtering parameters.
