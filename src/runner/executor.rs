@@ -1,42 +1,54 @@
-use crate::fingerprint::model::Fingerprint;
+use crate::cli::cli_options::ScanMode;
+use crate::fingerprint::matcher::FingerprintMatcher;
 use crate::output::SaveInfo;
 use crate::scan::http_scan::scan_one;
 use futures::StreamExt;
 use reqwest::Client;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+use tokio::time::{Duration, interval};
 
 pub async fn run(
     client: Client,
     urls: Vec<String>,
-    fingerprint: Arc<Vec<Fingerprint>>,
+    fingerprint: Arc<FingerprintMatcher>,
     threads: usize,
     status_code: Arc<Vec<u16>>,
+    mode: ScanMode,
+    rate: u32,
 ) -> Vec<SaveInfo> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let threads = threads.max(1);
     let mut results = Vec::new();
-    let value = tx.clone();
+    let sender = tx.clone();
+    let ticker = (rate > 0).then(|| {
+        Arc::new(Mutex::new(interval(Duration::from_secs_f64(
+            1.0 / rate as f64,
+        ))))
+    });
     let scan_handle = tokio::spawn(async move {
         futures::stream::iter(urls)
             .map(|url| {
                 let client = client.clone();
                 let fps = Arc::clone(&fingerprint);
                 let status_code = Arc::clone(&status_code);
-                let tx = value.clone();
+                let tx = sender.clone();
+                let ticker = ticker.clone();
 
                 async move {
-                    match scan_one(&client, &url, &fps, &status_code).await {
-                        Ok(result) => {
-                            let _ = tx.send(result.clone());
-                            Some(result)
-                        }
-                        Err(_) => None,
+                    if let Some(ticker) = ticker {
+                        let mut guard = ticker.lock().await;
+                        guard.tick().await;
+                    }
+
+                    if let Ok(result) = scan_one(&client, &url, &fps, &status_code, mode).await {
+                        let _ = tx.send(result);
                     }
                 }
             })
             .buffer_unordered(threads)
-            .collect::<Vec<_>>()
+            .for_each(|_| async {})
             .await
     });
 

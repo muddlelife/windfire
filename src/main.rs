@@ -27,7 +27,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let status_code = Arc::new(args.status_code);
 
-    let results = run(client, urls, fingerprints, args.thread, status_code).await;
+    let results = run(
+        client,
+        urls,
+        fingerprints,
+        args.thread,
+        status_code,
+        args.mode,
+        args.rate,
+    )
+    .await;
 
     output_results(results, args.output);
     Ok(())

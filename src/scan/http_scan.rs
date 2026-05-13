@@ -1,4 +1,5 @@
-use crate::fingerprint::model::Fingerprint;
+use crate::cli::cli_options::ScanMode;
+use crate::fingerprint::matcher::FingerprintMatcher;
 use crate::http::request;
 use crate::output::SaveInfo;
 use reqwest::Client;
@@ -18,19 +19,16 @@ pub struct ScanResult {
 pub async fn scan_one(
     client: &Client,
     url: &str,
-    fingerprints: &[Fingerprint],
+    fingerprints: &FingerprintMatcher,
     status_code: &[u16],
+    mode: ScanMode,
 ) -> Result<SaveInfo, Box<dyn std::error::Error + Send + Sync>> {
-    let resp = request::fetch(client, url, status_code).await?;
-    let mut matched: Vec<String> = Vec::new();
-
-    for fp in fingerprints {
-        if fp.matches(&resp) {
-            matched.push(fp.cms.clone());
-        }
-    }
-    matched.sort();
-    matched.dedup();
+    let resp = request::fetch(client, url, status_code, mode == ScanMode::Full).await?;
+    let matched = if mode == ScanMode::Full {
+        fingerprints.match_response(&resp)
+    } else {
+        Vec::new()
+    };
 
     Ok(SaveInfo {
         url: resp.url,

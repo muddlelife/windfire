@@ -42,6 +42,10 @@ pub fn build_urls(args: &Args) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(urls)
 }
 
+fn has_http_scheme(input: &str) -> bool {
+    input.starts_with("http://") || input.starts_with("https://")
+}
+
 // 读取文件
 fn read_urls_from_file(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let file = File::open(path)?;
@@ -65,7 +69,7 @@ fn read_urls_from_file(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
 
 // 解析http
 fn expand_line(line: &str) -> Vec<String> {
-    if line.starts_with("http://") || line.starts_with("https://") {
+    if has_http_scheme(line) {
         return vec![line.to_string()];
     }
 
@@ -85,7 +89,11 @@ fn expand_line(line: &str) -> Vec<String> {
 
 // 协议规则
 fn expand_ip_or_domain(input: &str) -> Vec<String> {
-    if let Some((_, port)) = input.split_once(':') {
+    if has_http_scheme(input) {
+        return vec![input.to_string()];
+    }
+
+    if let Some((_, port)) = input.rsplit_once(':') {
         match port {
             "443" => vec![format!("https://{}", input)],
             "80" => vec![format!("http://{}", input)],
@@ -97,7 +105,7 @@ fn expand_ip_or_domain(input: &str) -> Vec<String> {
 }
 
 fn normalize_urls(urls: Vec<String>, path: &str) -> Vec<String> {
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(urls.len());
 
     let path = path.trim_start_matches('/');
 

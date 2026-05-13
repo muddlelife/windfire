@@ -9,6 +9,8 @@
 | 状态码过滤|对 HTTP 响应的状态码进行过滤，默认只保留200 |
 | 指定路径 |支持指定路径进行测活，默认为根目录 |
 | 指纹识别 |采用开源指纹库识别网站CMS |
+| 探活模式分层 |支持 `alive`（只测活）和 `full`（测活+指纹）模式 |
+| 扫描速率控制 |支持 `--rate` 控制每秒请求数，避免压垮目标 |
 | 高并发 |支持高并发请求、支持异步 |
 
 # 用法
@@ -32,6 +34,8 @@ Options:
   -p, --path <PATH>                Designated path scan [default: ]
   -x, --proxy <PROXY>              Supported Proxy socks5, http, and https, Example: -x socks5://127.0.0.1:1080
   -o, --output <OUTPUT>            Output can be a CSV or JSON file. Example: -o result.csv or -o result.json
+      --mode <MODE>                Scan mode: alive or full [default: full]
+      --rate <RATE>                Max requests per second (0 means unlimited) [default: 0]
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
@@ -44,6 +48,8 @@ Options:
 * -p --path 指定扫描路径，默认为空，不指定，如 -p admin
 * -x --proxy 支持代理，目前支持socks5，http，https，如：-x socks5://127.0.0.1:1080
 * -o --output 支持将扫描结果导出为csv文件或者json文件，如：-o result.csv 或者 -o result.json
+* --mode 探活模式，`alive` 仅测活，`full` 测活+指纹（默认 `full`）
+* --rate 扫描速率限制，每秒请求数，`0` 表示不限速（默认）
 * -h --help 显示帮助信息
 * -V --version 显示版本信息
 
@@ -83,3 +89,10 @@ https://www.baidu.com [200] [百度一下，你就知道] [BWS/1.1] [414219] ["C
 * 服务器（server）
 * 响应页面大小（content_length）
 * 指纹信息
+
+## 版本发布
+
+### v0.5.0
+- 新增探活模式分层：`--mode alive|full`。
+- 新增全局扫描速率控制：`--rate`。
+- 兼容现有状态码过滤、代理与导出能力。
